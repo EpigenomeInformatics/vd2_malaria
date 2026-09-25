@@ -8,9 +8,10 @@
 
 ####################################################################################
 
-
-library(circlize)
+suppressPackageStartupMessages(c(
+library(circlize),
 library(ComplexHeatmap)
+))
 
 # order from chromVAR heatmap
 order_ <- c("VD2_2013_d3278_52", "VD2_2013_d3340_80", "VD2_2014_d3381_160",
@@ -24,7 +25,6 @@ order_ <- c("VD2_2013_d3278_52", "VD2_2013_d3340_80", "VD2_2014_d3381_160",
 "VD2_2015_d3257_48", "VD2_2014_d3326_72", "VD2_2016_d3340_88", 
 "VD2_2016_d3381_164", "VD2_2016_d3401_216", "VD2_2016_d3278_60", 
 "VD2_2016_d3384_192", "VD2_2016_d3280_168", "VD2_2016_d3369_112")
-
 
 responderSamples <- c(
 "VD2_2016_d3340_88" ,
@@ -45,111 +45,106 @@ responderSamples <- c(
 "VD2_2014_d3398_200"
 )
 
-colors_ <- c(
-  "black","red","blue","green3","gold","purple","deeppink","gray50","cyan",
-  "darkred","darkviolet","chocolate","orange",
-  "navy","forestgreen","magenta","turquoise4","orangered","sienna",
-  "dodgerblue3","firebrick","goldenrod3","darkorange3","brown","olivedrab3"
+
+devZ <- readRDS("./data/RNA/devZmotifFamilies.rds")
+motifAnnotDf <- read.csv("./data/RNA/annotcol4motifs.csv", row.names = 1)
+
+devZ <- devZ[, order_]
+if (!all(order_ == colnames(devZ))) stop("Columns must be identical")
+
+logCounts <- cpm(dge, log = TRUE, prior.count = 2)
+heatmapDesign <- model.matrix(~ group, data = dge$samples)
+logCounts <- removeBatchEffect(
+  logCounts,
+  batch  = dge$samples$donors,
+  design = heatmapDesign
 )
 
+subDeg <- degDf[!degDf$diffExp %in% c("NO", "Not differential"), ]
+logCounts <- logCounts[rownames(subDeg), ]
 
-devZ <- readRDS("/icbb/projects/mmaran/malaria/devZmotifFamilies.rds")
-annot_col <- read.csv("/icbb/projects/mmaran/malaria/annotcol4motifs.csv", row.names=1)
-devZ <- devZ[,order_]
-if(!all(order_ == colnames(devZ))) stop("Columns must be identical")
+subDeg <- subDeg %>% arrange(match(rownames(subDeg), rownames(logCounts)))
+stopifnot(identical(rownames(subDeg), rownames(logCounts)))
+rownames(logCounts) <- subDeg$name
 
-# aEIR DGE
-logCounts <- cpm(DGE, log = TRUE, prior.count = 2)
-design <- model.matrix(~ group, data = DGE$samples)
-logCounts <- removeBatchEffect(logCounts,
-                           batch      = DGE$samples$donor,
-                           design     = design)
-
-sub <- DEG[!DEG$diffExp %in% "NO",]
-logCounts <- logCounts[rownames(sub),]
-
-
-summary(rownames(logCounts) %in% rownames(sub))
-summary(rownames(sub) %in% rownames(logCounts))
-sub <- sub %>% arrange(match(rownames(sub), rownames(logCounts)))
-identical(rownames(sub), rownames(logCounts))
-rownames(logCounts) <- sub$name
-
-degAligned <- matrix(NA, 
-                       nrow = nrow(logCounts), 
-                       ncol = ncol(devZ), 
-                       dimnames = list(rownames(logCounts), colnames(devZ)))
-
-common_cols <- intersect(colnames(devZ), colnames(logCounts))
-degAligned[, common_cols] <- logCounts[, common_cols]
-
-if(!all(colnames(degAligned) == colnames(devZ))) stop("Columns must be identical")
-identical(colnames(degAligned), colnames(devZ)) 
-
-
-
-
-annot_col <- annot_col %>% select(year, log10_aeir, EirGrp)
-annot_col$responder <- ifelse(rownames(annot_col) %in% responderSamples, "Res", "NonRes")
-annot_col$year <- as.numeric(annot_col$year)
-
-responder_ <- c("goldenrod3", "olivedrab3") 
-names(responder_) <- unique(annot_col$responder)
-
-annoCol<-list(
-    log10_aeir = colorRamp2(breaks = c(min(annot_col$log10_aeir), max(annot_col$log10_aeir)), colors = c("green", "red")),
-    year = colorRamp2(breaks = c(2013, 2016), colors = c("brown", "gold")),
-    EirGrp = c("low" = "green", "high" = "red"),
-    responder = responder_
+degAligned <- matrix(
+  NA, 
+  nrow = nrow(logCounts), 
+  ncol = ncol(devZ), 
+  dimnames = list(rownames(logCounts), colnames(devZ))
 )
 
+commonCols <- intersect(colnames(devZ), colnames(logCounts))
+degAligned[, commonCols] <- logCounts[, commonCols]
 
+if (!all(colnames(degAligned) == colnames(devZ))) stop("Columns must be identical")
+stopifnot(identical(colnames(degAligned), colnames(devZ))) 
 
-h1_ = colorRamp2(c(-3, 0, 3), c("blue", "white", "red"))
-h2_ = colorRamp2(c(-3, 0, 3), c("darkblue", "white", "darkred"))
+motifAnnotDf <- motifAnnotDf %>% select(year, log10_aeir, EirGrp)
 
+motifAnnotDf$responder <- ifelse(rownames(motifAnnotDf) %in% responderSamples, "Res", "NonRes")
+motifAnnotDf$year <- as.numeric(motifAnnotDf$year)
 
-# plotting
+responderColors <- c("goldenrod3", "olivedrab3") 
+names(responderColors) <- unique(motifAnnotDf$responder)
 
-annot_col <- annot_col[colnames(devZ),]
-identical(rownames(annot_col), colnames(devZ))
-identical(rownames(annot_col), colnames(degAligned))
+heatAnnoColors <- list(
+  log10_aeir = colorRamp2(breaks = c(min(motifAnnotDf$log10_aeir, na.rm = TRUE), max(motifAnnotDf$log10_aeir, na.rm = TRUE)), colors = c("green", "red")),
+  year       = colorRamp2(breaks = c(2013, 2016), colors = c("brown", "gold")),
+  EirGrp     = c("low" = "green", "high" = "red"),
+  responder  = responderColors
+)
 
-colAnn <- HeatmapAnnotation(
-  df = annot_col,
-  col = annoCol,
+colFunChromVar <- colorRamp2(c(-3, 0, 3), c("blue", "white", "red"))
+colFunDeg      <- colorRamp2(c(-3, 0, 3), c("darkblue", "white", "darkred"))
+
+# Plotting
+
+motifAnnotDf <- motifAnnotDf[colnames(devZ), ]
+stopifnot(
+  identical(rownames(motifAnnotDf), colnames(devZ)),
+  identical(rownames(motifAnnotDf), colnames(degAligned))
+)
+
+colAnno <- HeatmapAnnotation(
+  df = motifAnnotDf,
+  col = heatAnnoColors,
   annotation_legend_param = list(
     labels_gp = gpar(fontsize = 10) 
-  ))
+  )
+)
 
+ht1 <- Heatmap(
+  devZ, 
+  name = "chromVAR", 
+  col = colFunChromVar,
+  top_annotation = colAnno,
+  cluster_columns = FALSE,
+  show_row_names = FALSE,     
+  show_column_names = TRUE
+)
 
-h1 <- Heatmap(devZ, 
-            name = "chromVAR", 
-            col = h1_,
-            top_annotation = colAnn,
-            cluster_columns = FALSE,
-            show_row_names = FALSE,     
-            show_column_names = TRUE)
+htTemp <- draw(ht1)
+rowOrder1 <- row_order(htTemp)
 
-ht = draw(h1)
-ro_1 <- row_order(ht)
+ht2 <- Heatmap(
+  t(scale(t(degAligned))), 
+  name = "DEG", 
+  col = colFunDeg,
+  na_col = "white",       
+  cluster_columns = FALSE,
+  cluster_rows = TRUE,
+  show_row_names = FALSE,     
+  show_column_names = FALSE
+)
 
-h2 <- Heatmap(t(scale(t(degAligned))), 
-              name = "DEG", 
-        col = h2_,
-            na_col = "white",       
-            cluster_columns = FALSE,
-            cluster_rows = TRUE,
-            show_row_names = FALSE,     
-            show_column_names = FALSE)
+htList <- ht1 %v% ht2
 
-ht_list = h1 %v% h2
-
-jpeg("image.jpg", width=12, height=16, units="in", res=600)
-# pdf(paste0(plotDir, "vd2.chromVAR-DEG.", GROUP, ".pdf"), width=12, height=16)
-draw(ht_list, 
-     annotation_legend_side = "right", 
-     heatmap_legend_side = "right")
+pdf(paste0(plotDir, "RNA-vd2.chromVAR-DEG.", groupCol, ".pdf"), width = 12, height = 16)
+draw(
+  htList, 
+  annotation_legend_side = "right", 
+  heatmap_legend_side = "right"
+)
 dev.off()
-
 # nolint end

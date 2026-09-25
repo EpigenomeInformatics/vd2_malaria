@@ -8,45 +8,44 @@
 
 ####################################################################################
 
+suppressPackageStartupMessages(c(
+library(biomaRt),
+library(ggplot2),
+library(dplyr),
+library(clusterProfiler),
+library(org.Hs.eg.db),
+library(enrichplot),
+library(msigdbr)))
 
-library(clusterProfiler)
-library(org.Hs.eg.db)
-library(dplyr)
-library(biomaRt)
-library(enrichplot)
-library(msigdbr)
+plotDir <- "./results/RNAseq/"
+groupCol <- "aeir_group"
 
-plotDir <- "/icbb/projects/mmaran/malaria/2025/Manuscript/RNA/COMBINED/noSexChr/"
+if(!exists("degDf")){
+  print(paste("loading DEG:", groupCol))
+  degDf <- read.csv(paste0("./data/RNA_vd2.", groupCol ,".csv"), row.names = 1)
+} else{
+  print("using already exiting degDf")
+}
 
+degDf <- degDf %>% dplyr::filter(!is.na(logFC))
 
-GROUP <- "aeir_group"
-DEG  <- read.csv(paste0(plotDir, "RNA_vd2.", GROUP ,".csv"), row.names = 1)
-head(DEG)
-dim(DEG)
-summary(is.na(DEG$logFC))
-
-DEG %>% count(genes) %>%  
-  dplyr::filter(n > 1)
-
-DEG <- DEG %>% dplyr::filter(!is.na(logFC))
-geneList <- DEG %>% 
-                mutate(rank = -log10(PValue) * sign(logFC)) %>% 
-                arrange(desc(rank)) %>% 
-                dplyr::select(genes, rank) %>%
-                tibble::deframe()
-
-head(geneList)
-tail(geneList)
+geneList <- degDf %>% 
+  mutate(rank = -log10(PValue) * sign(logFC)) %>% 
+  arrange(desc(rank)) %>% 
+  dplyr::select(genes, rank) %>%
+  tibble::deframe()
 
 
 # RELEVANT PATHWAYS
 
-keywords <- c("immune", "cytokine", "lymphocyte", "leukocyte", 
-              "interferon", "interleukin", "chemokine", "antigen", 
-              "T cell", "B cell", "myeloid", "defense response",
-              "inflammatory", "parasite", "macrophage")
+immuneKeywords <- c(
+  "immune", "cytokine", "lymphocyte", "leukocyte", 
+  "interferon", "interleukin", "chemokine", "antigen", 
+  "T cell", "B cell", "myeloid", "defense response",
+  "inflammatory", "parasite", "macrophage"
+)
 
-gse_go <- gseGO(
+gseGo <- gseGO(
   geneList     = geneList,
   OrgDb        = org.Hs.eg.db, 
   ont          = "BP",        
@@ -59,31 +58,29 @@ gse_go <- gseGO(
   seed         = TRUE      
 )
 
-immune_results <- gse_go@result %>%
-  filter(grepl(paste(keywords, collapse = "|"), Description, ignore.case = TRUE)) %>%
+immuneResults <- gseGo@result %>%
+  filter(grepl(paste(immuneKeywords, collapse = "|"), Description, ignore.case = TRUE)) %>%
   filter(p.adjust <= 0.05) 
 
-gse_immune <- gse_go
-gse_immune@result <- immune_results
+gseImmune <- gseGo
+gseImmune@result <- immuneResults
 
-# pdf(paste0(plotDir, "vd2.dotPlot.GSEA_GO.pval-signLogFC", GROUP, ".pdf"), width=14, height=16)
-jpeg("image.jpg", width=14, height=16, units="in", res=600)
-  dotplot(gse_immune, showCategory=20, split=".sign", orderBy = "x") + 
-  facet_grid(.~.sign,  labeller = as_labeller(c("activated" = "High aEIR", "suppressed" = "Low aEIR")))
+pdf(paste0(plotDir, "RNA-vd2.dotPlot.GSEA_GO.", groupCol, ".pdf"), width = 14, height = 16)
+dotplot(gseImmune, showCategory = 20, split = ".sign", orderBy = "x") + 
+  facet_grid(. ~ .sign, labeller = as_labeller(c("activated" = "High aEIR", "suppressed" = "Low aEIR")))
 dev.off()
 
-gse_immune <- pairwise_termsim(gse_immune)
+gseImmune <- pairwise_termsim(gseImmune)
 
 # emapplot
-pdf(paste0(plotDir, "vd2.emaPlot.GSEA_GO.pval-signLogFC", GROUP, ".pdf"), width=14, height=16)
+pdf(paste0(plotDir, "RNA-vd2.emaPlot.GSEA_GO.", groupCol, ".pdf"), width = 14, height = 16)
 # jpeg("image.jpg", width=14, height=16, units="in", res=600)
-    enrichplot::emapplot(gse_immune, 
-               showCategory = 30,
-               layout = "kk",          
-               cex_category = 1.2,    
-               cex_label_category = 1 
+enrichplot::emapplot(
+  gseImmune, 
+  showCategory = 30,
+  layout = "kk",          
+  cex_category = 1.2,    
+  cex_label_category = 1 
 )
 dev.off()
-
-
 # nolint end

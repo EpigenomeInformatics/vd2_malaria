@@ -11,14 +11,16 @@
 # 0. Libraries and Setup
 set.seed(123)
 
-library(edgeR)
-library(tximport)
-library(biomaRt)
-library(ggplot2)
-library(dplyr)
-library(stringi)
-library(rhdf5)
+suppressPackageStartupMessages(c(
+library(edgeR),
+library(tximport),
+library(biomaRt),
+library(ggplot2),
+library(dplyr),
+library(stringi),
+library(rhdf5),
 library(ggrepel)
+))
 options(ggrepel.max.overlaps = Inf)
 
 plotDir <- "./results/RNAseq/"
@@ -76,7 +78,7 @@ tx2Gene <- splitDf[, 1:2]
 vd2 <- tximport(allFiles, type = "kallisto", tx2gene = tx2Gene, txOut = FALSE, ignoreAfterBar = TRUE)
 
 
-sampleAnnot <- read.csv("./data/RNAcomprehensiveSampleAnnot.csv", row.names = 1)
+sampleAnnot <- read.csv("./data/RNA/RNAcomprehensiveSampleAnnot.csv", row.names = 1)
 
 # 3. Obtain gene information from abundance file
 
