@@ -16,7 +16,7 @@ source("/icbb/projects/mmaran/SCRIPTS/CCB/malariaScripts/utils.R")
 # 1. chromVAR Altius
 # code snippet from F.Muller
 
-chromVAR_Altius <- function(data_, GR){
+chromVAR_Altius_ <- function(data_, GR){
   print("Loading chromVAR Motifs")
 
   cvMot <- readRDS("/scratch/icbb/mmaran/malaria/tfMotifClusters_hg38_uniqueClust.rds")
@@ -43,10 +43,10 @@ chromVAR_Altius <- function(data_, GR){
   return(cvRes)
 }
 
-#' TODO: Wilcoxon Test
+#' Wilcoxon Test
 #'  @return diff_acc
 
-zDiff <- function(data_, devZ, GRP1 = GRP1, GRP2 = GRP2){
+zDiff_ <- function(data_, devZ, GRP1 = GRP1, GRP2 = GRP2){
 
     group1 <- getSampleAnnot(data_)$sampleId[getSampleAnnot(data_)[[GRP]] %in% GRP1] #%>% droplevels()
     group2 <- getSampleAnnot(data_)$sampleId[getSampleAnnot(data_)[[GRP]] %in% GRP2] #%>% droplevels()
@@ -67,12 +67,11 @@ zDiff <- function(data_, devZ, GRP1 = GRP1, GRP2 = GRP2){
 }
 
 
-
 # filter
 # High 35, low 34 Param
 # 25, 29          nonParam
 
-annot_zDiff <- function(diff_acc, data_, GRP1 = GRP1, GRP2 = GRP2, CUTOFF = 1, padj = 0.05){
+annot_zDiff_ <- function(diff_acc, data_, GRP1 = GRP1, GRP2 = GRP2, CUTOFF = 1, padj = 0.05){
     
     group1 <- getSampleAnnot(data_)$sampleId[getSampleAnnot(data_)[[GRP]] %in% GRP1] #%>% droplevels()
     group2 <- getSampleAnnot(data_)$sampleId[getSampleAnnot(data_)[[GRP]] %in% GRP2] #%>% droplevels()

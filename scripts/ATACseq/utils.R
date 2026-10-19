@@ -39,6 +39,8 @@ suppressPackageStartupMessages({
 
 options(ggrepel.max.overlaps = Inf)
 
+plotDir <- "results/ATACseq/"
+
 # 2. Global Variables & Paths
 PATH_long_0.5 <- "/icbb/projects/mmaran/malaria/dsATAC/longSaturationAnalysis/vd2.year0.5/data/dsATAC_filtered"
 PATH_regional_longPeakYear0.5 <- "/icbb/projects/mmaran/malaria/pilot/longPeaksYear0.5/"
@@ -108,7 +110,8 @@ loadOBJECT_ <- function(obj_type) {
 
 removeSamples_ <- function(data_obj, type = "EirGrp") {
   annot <- getSampleAnnot(data_obj)
-  
+  lev <- levels(as.factor(annot[[type]]))
+
     # Total: 46 samples
     # >1: 42 samples
     # aeir TP: 33 samples
@@ -119,11 +122,11 @@ removeSamples_ <- function(data_obj, type = "EirGrp") {
     to_remove <- annot$responders == "no"
     data_obj <- removeSamples(data_obj, to_remove)
     
-  } else if (type == "EirGrp") {
-    # Keep only donors with BOTH low and high EirGrp
+  } else {
+    # Keep only donors in BOTH groups
     valid_donors <- annot %>%
       group_by(donor) %>%
-      filter(any(EirGrp == "low") & any(EirGrp == "high")) %>%
+      filter(any(.data[[type]] == lev[1]) & any(.data[[type]] == lev[2])) %>%
       pull(donor) %>% 
       unique()
     to_remove <- !annot$donor %in% valid_donors
@@ -131,7 +134,6 @@ removeSamples_ <- function(data_obj, type = "EirGrp") {
   }
     # Drop donor levels
     data_obj <- addSampleAnnotCol(data_obj, "donor", droplevels(getSampleAnnot(data_obj)$donor))
-  
   
   return(data_obj)
 }
@@ -156,7 +158,7 @@ colors <- c("black", "red", "blue", "green3", "gold", "purple", "deeppink", "gra
 
 # 7. FUNC: takeResLimma
 
-takeResLimma <- function(cm, annot, corCol, compCol="EirGrp") {
+takeResLimma_ <- function(cm, annot, corCol, compCol="EirGrp") {
 
     annot <- as.data.frame(annot)
 
