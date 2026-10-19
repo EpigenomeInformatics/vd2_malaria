@@ -1,6 +1,6 @@
 # Repeated malaria exposure reprograms Vδ2+ γδ T cell chromatin accessibility and immune function toward a reversible hyporesponsive state.
 
-[![DOI](https://doi.org/10.64898/2026.10.02.755737)](https://doi.org/10.64898/2026.10.02.755737)
+[![DOI](BioRXiv)](https://doi.org/10.64898/2026.10.02.755737)
 This repository contains the analysis scripts, pipelines, and configuration files used to generate the results and figures presented in the paper.
 
 ## Abstract
