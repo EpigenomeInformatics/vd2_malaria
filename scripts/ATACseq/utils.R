@@ -60,7 +60,7 @@ loadOBJECT_ <- function(obj_type) {
   if (obj_type == "long") {
     long <- loadDsAcc(PATH_long_0.5) 
     
-    # Sample Swap
+    # Sample Swap. NOT FOR GEO DATA. ALREADY CORRECTED!!
     swap_samples <- function(count_matrix) {
       as.data.frame(count_matrix) %>% 
         rename(VD2_2015_d3092_248 = "VD2_2016_d3345_244", 
