@@ -39,7 +39,7 @@ GR <- ".peaks.cons"
 
 if(cv =="JASPAR"){
   ### chromVAR with JASPAR motifs
-  cvRes <- getChromVarDev_(data_, GR)  
+  cvRes <- getChromVarDev(data_, GR, motifs="jaspar")
 }else{
   ### ChromVAR Motif Family
   cvRes <- chromVAR_Altius_(data_, GR)
