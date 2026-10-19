@@ -16,3 +16,21 @@ Vδ2+ γδ T cells contribute to antimalarial immunity via pro-inflammatory and 
 ├── data/
 ├── envs/                        
 └── README.md
+```
+
+## Data Availability
+The raw and processed sequencing data have been deposited in the NCBI GEO (GSE351172)
+
+## System Requirements & Dependencies
+
+Languages: R (>= 4.2.0), Bash
+
+Key Packages: ChrAccR, edgeR, limma, ComplexHeatmap, chromVAR, clusterProfiler, LOLA, pyGenomeTracks
+
+## Citation
+If you use the code or data from this repository in your research, please cite our mauscript.
+
+Press, Joseph Maran et al. (2026). Repeated malaria exposure reprograms Vδ2+ γδ T cell chromatin accessibility and immune function toward a reversible hyporesponsive state. DOI: https://doi.org/10.64898/2026.10.02.755737
+
+## Contact
+For questions regarding the analysis or code, please open an issue in this repository or contact Midhuna I Joseph Maran at mijo00001@uni-saarland.de
