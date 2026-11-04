@@ -1,0 +1,726 @@
+---
+title: "VD2 Analysis - Subsetting & Preprocessing"
+author: "Adam A.M."
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    toc_float:
+      toc_collapsed: true
+    toc_depth: 3
+    number_sections: false
+    theme: lumen
+knit: (function(inputFile, encoding) { rmarkdown::render(inputFile, encoding = encoding, output_file = file.path(dirname(inputFile), paste0("VD2_Paper_Report1_", Sys.Date(), ".html"))) })
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning = F)
+
+
+knitr::opts_chunk$set(dev = c("png", "pdf"), fig.path = "figures_pdf_paper1", dpi = 300)
+dir.create("figures_pdf_paper", showWarnings = FALSE)
+
+
+library(Seurat)
+library(SeuratObject)
+library(dplyr)
+library(ggplot2) 
+library(readr)
+library(tidyr)
+library(ggrepel)
+
+
+library(clusterProfiler)
+library(org.Hs.eg.db)
+
+library(enrichplot)
+library(ggplot2)
+library(pheatmap)
+
+library(harmony)
+
+
+set.seed(13)
+```
+
+# README - Subsetting & Preprocessing
+
+Hey all, this R Markdown document contains the preprocessing and quality-control workflow for the VD2 γδ T cell subset extracted from the full CITE-seq dataset based on ADT (surface protein) expression.
+
+The goal is to generate a clean, analysis-ready VD2 object for downstream analyses (e.g. differential expression and functional analysis in separate R Markdown files).
+
+This analysis starts from a pre-filtered VD2-enriched Seurat object (`VD2_cells_ADTmoreThan1_2_JOINED.rds`) defined by a CLR-normalized VD2 marker threshold (\> 1.2), selected based on a bimodal expression distribution in the full dataset. The object contains RNA and ADT assays together with donor, sample, and condition metadata.
+
+The preprocessing includes filtering out ribosomal genes, retaining the top 85% variable genes, and restricting the dataset to protein-coding genes and lncRNAs. RNA and ADT layers are independently normalized (log-normalization and CLR normalization respectively) and scaled.
+
+Dimensionality reduction is performed using PCA for both modalities, followed by batch correction using Harmony at the sample level. UMAP embeddings are computed from the Harmony-corrected space.
+
+The final output is a cleaned and QC-filtered VD2 Seurat object containing processed RNA and ADT assays, PCA/Harmony/UMAP embeddings, and curated metadata, which serves as the input for downstream differential expression and functional analyses in separate workflows.
+
+# Load data and inspect
+
+```{r,echo=FALSE}
+knitr::include_graphics("hist_ADT_thr.png")
+```
+
+we look at the histogram of the VD2 surface marker distributions and identify a bimodal distribution.
+
+```{r,echo=FALSE}
+knitr::include_graphics("hist_ADT_thr_celltypeCOLOR.png")
+```
+
+Looking at the cell type composition of the cells in each bin of expression we can see that the higher end cells are labelled as VD2 cells based on the RNA annotation using SingleR and the monaco immune atlas db as reference. The cells in the middle of the two distribution masses are a mix of vd and vd2 cells.
+
+We set the threshold at normalized CLR expression of 1.2 for the VD2 surface marker, resulting in the following dataset :
+
+```{r}
+proj_dir = getwd()
+
+VD2_cells = readRDS(file.path(proj_dir,"VD2_cells_ADTmoreThan1_2_JOINED.rds"))
+
+VD2_cells
+```
+
+## Top variable genes filtration 
+```{r}
+DefaultAssay(VD2_cells) = "RNA"
+
+rna_features = rownames(VD2_cells[["RNA"]])
+
+ribo_genes = grep("^RP[SL]", rna_features, value = TRUE)
+
+non_ribo_rna_genes <- setdiff(rna_features, ribo_genes)
+protein_features <- rownames(VD2_cells[["Protein"]])
+VD2_cells <- subset(VD2_cells, features = c(non_ribo_rna_genes, protein_features))
+
+counts <- GetAssayData(
+  VD2_cells,
+  assay = "RNA",
+  layer = "counts"
+)
+
+gene_variance <- apply(counts, 1, var)
+
+```
+
+```{r}
+log_var <- log1p(gene_variance)
+
+quantile(log_var, probs = c(0.5, 0.8, 0.9, 0.99, 0.9999), na.rm = TRUE)
+```
+
+```{r}
+log_var <- log1p(gene_variance)
+q85 <- quantile(log_var, probs = 0.85, na.rm = TRUE)
+
+# Ensure xlim covers from 0 to the maximum value (~9 or higher)
+hist(
+  log_var,
+  breaks = 100, 
+  xlim = c(0, max(log_var, na.rm = TRUE)),
+  main = "Histogram of log1p(gene_variance)", 
+  xlab = "log1p(gene_variance)", 
+  col = "lightblue", 
+  border = "white"
+)
+
+abline(v = q85, col = "red", lty = 2, lwd = 2)
+
+legend("topright", legend = paste0("85% Quantile: ", round(q80, 3)), col = "red", lty = 2, lwd = 2)
+```
+
+
+```{r}
+variance_threshold = quantile(gene_variance, 0.85, na.rm = TRUE)
+genes_use = names(gene_variance)[gene_variance >= variance_threshold]
+genes_final = setdiff(genes_use, ribo_genes)
+
+protein_features = rownames(VD2_cells[["Protein"]])
+all_features_to_keep = c(genes_final, protein_features)
+
+# Filter out the 3280-1 sample and subset features
+VD2_cells = subset(VD2_cells, subset = sample != "3280-1", features = all_features_to_keep)
+
+
+```
+
+
+## cell type filtration
+
+Before we move on, we filter all reads which come from regions that are not protein-coding or lncRNA.
+
+```{r}
+library(biomaRt)
+
+DefaultAssay(VD2_cells) = "RNA"
+genes = rownames(VD2_cells[["RNA"]])
+
+ensembl = useEnsembl(
+  biomart = "genes",
+  dataset = "hsapiens_gene_ensembl", version = 114)
+
+# ,
+#   mirror = "useast"   
+# )
+
+gene_info = getBM(attributes = c("external_gene_name", "gene_biotype"),
+                  filters = "external_gene_name",
+                  values = genes,
+                  mart = ensembl)
+
+# saveRDS(gene_info,"gene_info_0.85VAR.RDS")
+
+```
+
+```{r}
+# Keep only protein-coding genes and lncRNAs
+
+# #percent of reads retained:
+# length(gene_info_pc_lnc$external_gene_name)/length(gene_info$external_gene_name)
+
+
+gene_info_pc_lnc = gene_info[
+  gene_info$gene_biotype %in% c("protein_coding", "lncRNA"), 
+]
+
+genes_rna_keep = intersect(rownames(VD2_cells[["RNA"]]), gene_info_pc_lnc$external_gene_name)
+protein_features = rownames(VD2_cells[["Protein"]])
+
+VD2_cells = subset(VD2_cells, features = c(genes_rna_keep, protein_features))
+```
+
+```{r, echo=F, include=FALSE}
+# Map suffix 1 → pre, suffix 2 → post
+VD2_cells$suffix = ifelse(VD2_cells$suffix == "1", "pre",
+                          ifelse(VD2_cells$suffix == "2", "post", VD2_cells$suffix))
+
+#extract donor name from sample name
+VD2_cells$donor = gsub("-[12]$", "", VD2_cells$sample)
+
+VD2_cells$aEIR = ifelse(VD2_cells$sample %in% c("3280-1", "3280-2","3309-1"), "high", "low")
+
+```
+
+# renormalization
+
+```{r, message=FALSE, warning=FALSE}
+
+# REMOVE ALL EXISTING REDUCTIONS
+# ---------------------------
+VD2_cells@reductions = list()
+
+VD2_cells@graphs = list()
+
+# ---------------------------
+# RNA PIPELINE
+# ---------------------------
+DefaultAssay(VD2_cells) = "RNA"
+
+VD2_cells = NormalizeData(VD2_cells)
+VD2_cells = FindVariableFeatures(VD2_cells)
+
+VD2_cells = ScaleData(VD2_cells)
+
+VD2_cells = RunPCA(VD2_cells, reduction.name = "rna_pca_vd2", npcs = 50)
+elbow_plot = ElbowPlot(VD2_cells, reduction = "rna_pca_vd2", ndims=50)
+
+
+############### var explained by PC (and cumulative)
+
+# variance explained
+pct = VD2_cells[["rna_pca_vd2"]]@stdev^2
+pct_var = pct / sum(pct) * 100
+
+df = data.frame(
+  PC = seq_along(pct_var),
+  Variance = pct_var
+)
+
+df$cumVar = cumsum(df$Variance)
+
+# plot (variance + cumulative variance)
+scree_plot = ggplot(df[1:50, ], aes(x = PC)) +
+  geom_bar(aes(y = Variance), stat = "identity", alpha = 0.6) +
+  geom_line(aes(y = cumVar), color = "red", linewidth = 1) +
+  geom_point(aes(y = cumVar), color = "red") +
+  xlab("Principal Components") +
+  ylab("Variance explained (%)") +
+  ggtitle("PCA Scree Plot") +
+  theme_classic()
+
+
+elbow_plot | scree_plot
+
+
+VD2_cells = RunHarmony(
+  VD2_cells,
+  group.by.vars = "sample",
+  reduction = "rna_pca_vd2",
+  reduction.save = "rna_harmony_vd2"
+)
+
+# ElbowPlot(VD2_cells, reduction = "rna_harmony_vd2", ndims=50)
+
+
+VD2_cells = RunUMAP(
+  VD2_cells,
+  reduction = "rna_harmony_vd2",
+  reduction.name = "rna_umap_vd2",
+  dims = 1:30
+)
+
+```
+
+```{r}
+
+# ---------------------------
+# ADT PIPELINE
+# ---------------------------
+DefaultAssay(VD2_cells) = "Protein"
+
+VD2_cells = NormalizeData(VD2_cells, normalization.method = "CLR")
+
+VD2_cells = ScaleData(VD2_cells)
+
+VD2_cells = RunPCA(VD2_cells, reduction.name = "adt_pca_vd2")
+elbow_plot = ElbowPlot(VD2_cells, reduction = "adt_pca_vd2")
+
+
+# variance explained
+pct = VD2_cells[["adt_pca_vd2"]]@stdev^2
+pct_var = pct / sum(pct) * 100
+
+df = data.frame(
+  PC = seq_along(pct_var),
+  Variance = pct_var
+)
+
+df$cumVar = cumsum(df$Variance)
+
+# plot (variance + cumulative variance)
+scree_plot = ggplot(df[1:50, ], aes(x = PC)) +
+  geom_bar(aes(y = Variance), stat = "identity", alpha = 0.6) +
+  geom_line(aes(y = cumVar), color = "red", linewidth = 1) +
+  geom_point(aes(y = cumVar), color = "red") +
+  xlab("Principal Components") +
+  ylab("Variance explained (%)") +
+  ggtitle("PCA Scree Plot") +
+  theme_classic()
+
+
+elbow_plot | scree_plot
+
+
+
+
+VD2_cells = RunHarmony(
+  VD2_cells,
+  group.by.vars = "sample",
+  reduction = "adt_pca_vd2",
+  reduction.save = "adt_harmony_vd2"
+)
+
+VD2_cells = RunUMAP(
+  VD2_cells,
+  reduction = "adt_harmony_vd2",
+  reduction.name = "adt_umap_vd2",
+  dims = 1:19
+)
+
+
+```
+
+```{r}
+Reductions(VD2_cells)
+
+```
+
+# Cleaning mixed cell types
+
+```{r fig.width=12, fig.height=6 }
+p_pca_adt_sample = DimPlot(VD2_cells, reduction = "adt_pca_vd2", group.by = "donor", label = F)
+
+p_harmony_adt_sample = DimPlot(VD2_cells, reduction = "adt_harmony_vd2", group.by = "donor", label = F)
+
+p_pca_adt_celltype = DimPlot(VD2_cells, reduction = "adt_pca_vd2", group.by = "SingleR_fine", label = F)
+
+p_harmony_adt_celltype = DimPlot(VD2_cells, reduction = "adt_harmony_vd2", group.by = "SingleR_fine", label = F)
+
+
+p_pca_adt_sample | p_pca_adt_celltype
+  
+  
+  
+p_harmony_adt_sample |  p_harmony_adt_celltype
+
+
+p_pca_adt_sample | p_harmony_adt_sample
+
+```
+
+
+```{r}
+VD2_cells$vd_or_not = VD2_cells$SingleR_fine %in% c("Vd2 gd T cells", "Non-Vd2 gd T cells")
+VD2_cells$vd2 = ifelse(
+  VD2_cells$SingleR_fine == "Vd2 gd T cells",
+  "VD2",
+  "non-VD2"
+)
+
+table(VD2_cells$vd2)
+
+```
+
+```{r fig.width=10, fig.height=5}
+thr_vd2adtpca = 5
+
+p_thr_vd = DimPlot(
+  VD2_cells,
+  reduction = "adt_pca_vd2",
+  group.by = "vd_or_not",
+  label = FALSE
+)+ ggplot2::geom_vline(xintercept = 5, linetype = "dashed", linewidth = 0.4) + ggtitle("VD/VD2 v.s. all other cell types")
+
+
+
+p_thr_vd2 = DimPlot(
+  VD2_cells,
+  reduction = "adt_pca_vd2",
+  group.by = "vd2",
+  label = FALSE
+) + ggplot2::geom_vline(xintercept = 5, linetype = "dashed", linewidth = 0.4) + ggtitle("VD2 v.s. VD or all other cell types")
+
+
+p_thr_vd | p_thr_vd2 
+
+ggsave("non_vd2_thr_ADT_pca.pdf",width=12, height=5)
+
+```
+
+```{r}
+
+pc1 = Embeddings(VD2_cells[["adt_pca_vd2"]])[, "adtpcavd2_1"]
+
+
+VD2_cells$vd_or_not = VD2_cells$SingleR_fine %in% c("Vd2 gd T cells", "Non-Vd2 gd T cells")
+VD2_cells$vd2 = ifelse(
+  VD2_cells$SingleR_fine == "Vd2 gd T cells",
+  "VD2",
+  "non-VD2"
+)
+
+table(VD2_cells$vd2)
+
+```
+
+```{r}
+
+VD2_cells_plusFriends = VD2_cells
+
+VD2_cells = subset(VD2_cells, subset = adtpcavd2_1 < thr_vd2adtpca)
+
+dim(VD2_cells_plusFriends)
+
+dim(VD2_cells)
+```
+
+```{r}
+table(VD2_cells$suffix,VD2_cells$vd2)
+```
+
+```{r}
+table(VD2_cells$suffix,VD2_cells$donor)
+```
+
+## Batch Effects
+
+### Donor in ADT
+
+```{r}
+p1 = DimPlot(VD2_cells, reduction = "adt_pca_vd2", group.by = "donor", label = F) + ggtitle("ADT layer \n before harmony \n colored by donor")
+p2  =DimPlot(VD2_cells, reduction = "adt_harmony_vd2", group.by = "donor", label = F) + ggtitle("ADT layer \n after harmony \n colored by donor")
+
+p1 | p2
+```
+
+data from the VD2 cells subset seems to have batch effects for donor in the aDT layer, corrected by harmony for ADT.
+
+```{r}
+p3 = FeaturePlot(VD2_cells, reduction = "adt_pca_vd2", features = "nCount_Protein", label = F) + ggtitle("ADT layer\n before harmony ")
+p4 = FeaturePlot(VD2_cells, reduction = "adt_harmony_vd2", features = "nCount_Protein", label = F) + ggtitle("ADT layer \n after harmony ")
+
+p3 | p4
+
+
+ggsave("non_vd2_thr_nCountProtein_ADT_pca.pdf",width=10, height=5)
+
+
+```
+
+
+```{r}
+p3 = DimPlot(VD2_cells, reduction = "adt_pca_vd2", group.by = "sample", label = F) + ggtitle("ADT layer\n before harmony \n colored by sample")
+p4 = DimPlot(VD2_cells, reduction = "adt_harmony_vd2", group.by = "sample", label = F) + ggtitle("ADT layer \n after harmony \n colored by sample")
+
+p3 | p4
+
+ggsave("non_vd2_thr_sample_ADT_pca.pdf",width=10, height=5)
+
+```
+
+### Donor in RNA
+
+```{r}
+p5 = DimPlot(VD2_cells, reduction = "rna_pca_vd2", group.by = "donor", label = F)+ ggtitle("RNA layer \n before harmony \n colored by donor")
+p6 = DimPlot(VD2_cells, reduction = "rna_harmony_vd2", group.by = "donor", label = F) + ggtitle("RNA layer \n before harmony \n colored by donor")
+
+p5 | p6
+
+
+ggsave("non_vd2_thr_nCountProtein_RNA_pca.pdf",width=10, height=5)
+
+```
+
+```{r, fig.height=5, fig.width=10}
+
+
+p5 = DimPlot(VD2_cells, reduction = "rna_pca_vd2", group.by = "donor", label = FALSE) + 
+  ggtitle("RNA layer \n before harmony \n (PCA)") +
+  labs(x = "PCA Dimension 1", y = "PCA Dimension 2")
+
+p6 = DimPlot(VD2_cells, reduction = "rna_harmony_vd2", group.by = "donor", label = FALSE) + 
+  ggtitle("RNA layer \n after harmony \n colored by donor") +
+  labs(x = "Harmony Dimension 1", y = "Harmony Dimension 2")
+
+# 2. Add threshold lines to visualize the cutoffs
+p5_thresh = p5 + 
+  geom_vline(xintercept = 20, linetype = "dashed", color = "black", linewidth = 0.8) + 
+  geom_hline(yintercept = -20, linetype = "dashed", color = "black", linewidth = 0.8)
+
+p6_thresh = p6 + 
+  geom_vline(xintercept = 20, linetype = "dashed", color = "black", linewidth = 0.8) + 
+  geom_hline(yintercept = -20, linetype = "dashed", color = "black", linewidth = 0.8)
+
+# 3. View side by side
+p5_thresh | p6_thresh
+
+# 4. Save the plot
+ggsave("non_vd2_thr_nCountProtein_RNA_pca_dashed.pdf", width = 10, height = 5)
+
+p6_thresh
+ggsave("RNA_harmony_dashed_thr_donor.pdf", width = 6, height = 6)
+
+```
+
+```{r}
+p7 = FeaturePlot(VD2_cells, reduction = "rna_harmony_vd2", features = "nCount_RNA", label = F) + ggtitle("RNA layer\n after harmony \n colored by nCount RNA")
+
+p7_thresh = p7 + 
+  geom_vline(xintercept = 20, linetype = "dashed", color = "black", linewidth = 0.8) + 
+  geom_hline(yintercept = -20, linetype = "dashed", color = "black", linewidth = 0.8)
+
+
+p7_thresh
+ggsave("RNA_harmony_dashed_thr_nCount.pdf", width = 6, height = 6)
+
+
+p8 = FeaturePlot(VD2_cells, reduction = "rna_harmony_vd2", features = "nFeature_RNA", label = F) + ggtitle("RNA layer\n after harmony \n colored by nFeature RNA")
+
+
+
+p7 | p8
+p7_thresh = p7 + 
+  geom_vline(xintercept = 20, linetype = "dashed", color = "black", linewidth = 0.8) + 
+  geom_hline(yintercept = -20, linetype = "dashed", color = "black", linewidth = 0.8)
+
+```
+
+
+```{r}
+
+VD2_cells_plusFriends = VD2_cells
+
+seurat_obj = subset(
+  VD2_cells, 
+  subset =  PC_1 < 20 & PC_2 > -20
+)
+
+dim(VD2_cells_plusFriends)
+
+dim(seurat_obj)
+
+
+
+```
+
+
+```{r}
+# seurat_obj = VD2_cells
+
+pct = seurat_obj[["rna_pca_vd2"]]@stdev^2
+pct = pct / sum(pct) * 100
+
+
+p_pca_rna_suffix = DimPlot(
+  seurat_obj,
+  reduction = "rna_pca_vd2",
+  group.by = "donor",
+  label = FALSE
+) +
+  xlab(paste0("PC1 (", round(pct[1], 1), "%)")) +
+  ylab(paste0("PC2 (", round(pct[2], 1), "%)")) +
+  ggtitle("RNA PCA\ncolored by donor")
+
+
+
+  p_pca_harmony_suffix = DimPlot(
+  seurat_obj,
+  reduction = "rna_harmony_vd2",
+  group.by = "donor",
+  label = FALSE
+) +
+  ggtitle("RNA Harmony\ncolored by donor")
+  
+  
+  p_pca_rna_suffix | p_pca_harmony_suffix
+```
+
+
+
+```{r}
+
+pct = seurat_obj[["rna_pca_vd2"]]@stdev^2
+pct = pct / sum(pct) * 100
+
+
+p_pca_rna_suffix = FeaturePlot(
+  seurat_obj,
+  reduction = "rna_pca_vd2",
+  features = "nCount_RNA",
+  label = FALSE
+) +
+  xlab(paste0("PC1 (", round(pct[1], 1), "%)")) +
+  ylab(paste0("PC2 (", round(pct[2], 1), "%)")) +
+  ggtitle("RNA PCA\ncolored by nCount_RNA")
+
+
+
+  p_pca_harmony_suffix = FeaturePlot(
+  seurat_obj,
+  reduction = "rna_harmony_vd2",
+  features = "nCount_RNA",
+  label = FALSE
+) +
+  ggtitle("RNA Harmony\ncolored by nCount_RNA")
+  
+  
+  p_pca_rna_suffix | p_pca_harmony_suffix
+```
+
+
+```{r}
+
+pct = seurat_obj[["rna_pca_vd2"]]@stdev^2
+pct = pct / sum(pct) * 100
+
+
+p_pca_rna_suffix = FeaturePlot(
+  seurat_obj,
+  reduction = "rna_pca_vd2",
+  features = "nFeature_RNA",
+  label = FALSE
+) +
+  xlab(paste0("PC1 (", round(pct[1], 1), "%)")) +
+  ylab(paste0("PC2 (", round(pct[2], 1), "%)")) +
+  ggtitle("RNA PCA\ncolored by nFeature_RNA")
+
+
+
+  p_pca_harmony_suffix = FeaturePlot(
+  seurat_obj,
+  reduction = "rna_harmony_vd2",
+  features = "nFeature_RNA",
+  label = FALSE
+) +
+  ggtitle("RNA Harmony\ncolored by nFeature_RNA")
+  
+  
+  p_pca_rna_suffix | p_pca_harmony_suffix
+```
+
+
+
+```{r}
+
+
+pct = seurat_obj[["rna_pca_vd2"]]@stdev^2
+pct = pct / sum(pct) * 100
+
+
+p_pca_rna_suffix = DimPlot(
+  seurat_obj,
+  reduction = "rna_pca_vd2",
+  group.by = "sample",
+  label = FALSE
+) +
+  xlab(paste0("PC1 (", round(pct[1], 1), "%)")) +
+  ylab(paste0("PC2 (", round(pct[2], 1), "%)")) +
+  ggtitle("RNA PCA\ncolored by sample")
+
+
+
+  p_pca_harmony_suffix = DimPlot(
+  seurat_obj,
+  reduction = "rna_harmony_vd2",
+  group.by = "sample",
+  label = FALSE
+) +
+  ggtitle("RNA Harmony\ncolored by sample")
+  
+  
+  p_pca_rna_suffix | p_pca_harmony_suffix
+```
+
+```{r}
+
+
+pct = seurat_obj[["rna_pca_vd2"]]@stdev^2
+pct = pct / sum(pct) * 100
+
+
+p_pca_rna_suffix = DimPlot(
+  seurat_obj,
+  reduction = "rna_pca_vd2",
+  group.by = "donor",
+  label = FALSE
+) +
+  xlab(paste0("PC1 (", round(pct[1], 1), "%)")) +
+  ylab(paste0("PC2 (", round(pct[2], 1), "%)")) +
+  ggtitle("RNA PCA\ncolored by donor")
+
+
+
+  p_pca_harmony_suffix = DimPlot(
+  seurat_obj,
+  reduction = "rna_harmony_vd2",
+  group.by = "donor",
+  label = FALSE
+) +
+  ggtitle("RNA Harmony\ncolored by donor")
+  
+  
+  p_pca_rna_suffix | p_pca_harmony_suffix
+```
+
+# Save
+```{r}
+VD2_cells
+
+saveRDS(VD2_cells, file = paste0("VD2_cells_preprocessed_0.85VAR_no3280-1_", Sys.Date(),".rds"))
+saveRDS(seurat_obj, file = paste0("VD2_cells_preprocessed_filtered-RNA-from-pca_0.85VAR_no3280-1_", Sys.Date(),".rds"))
+
+
+```
+
+
