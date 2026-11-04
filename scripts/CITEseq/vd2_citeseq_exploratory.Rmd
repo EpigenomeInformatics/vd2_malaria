@@ -1,0 +1,392 @@
+---
+title: "VD2 Analysis - Exploratory Analysis"
+author: "Adam A.M."
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    toc_float:
+      toc_collapsed: true
+    toc_depth: 3
+    number_sections: false
+    theme: lumen
+knit: (function(inputFile, encoding) { rmarkdown::render(inputFile, encoding = encoding, output_file = file.path(dirname(inputFile), paste0("VD2_Paper_Report2_", Sys.Date(), ".html"))) })
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning = F)
+
+
+knitr::opts_chunk$set(dev = c("png", "pdf"), fig.path = "figures_pdf_paper2/", dpi = 300)
+dir.create("figures_pdf_paper2", showWarnings = FALSE)
+
+
+library(Seurat)
+library(SeuratObject)
+library(dplyr)
+library(ggplot2) 
+library(readr)
+library(tidyr)
+library(ggrepel)
+library(patchwork)
+library(org.Hs.eg.db)
+library(ggplot2)
+library(pheatmap)
+
+library(harmony)
+
+
+set.seed(13)
+```
+
+# README - Exploratory Analysis
+```{r}
+# VD2_cells = readRDS("VD2_cells_07-09-2026_for_paper.rds")
+VD2_cells = readRDS("VD2_cells_paper_18-09-2026.rds")
+# VD2_cells = readRDS("C:/Users/Adam/VD2_analysis/VD2_cells_preprocessed_filtered-RNA-from-pca_0.85VAR_no3280-1_2026-09-17.rds")
+
+
+```
+
+
+## Clustering
+
+```{r}
+DefaultAssay(VD2_cells) = "Protein"
+resolutions = c(0.3,0.4, 0.5, 0.8, 1.0,1.4)
+
+VD2_cells = FindNeighbors(
+  VD2_cells,
+  reduction = "adt_harmony_vd2",
+  dims = 1:19
+)
+
+for (r in resolutions) {
+  VD2_cells = FindClusters(
+    VD2_cells,
+    resolution = r,
+    algorithm = 1 #louvain
+  )
+}
+
+```
+
+```{r, fig.height=10, fig.width=8}
+library(patchwork)
+
+plots = lapply(
+  resolutions,
+  function(r) {
+    DimPlot(
+      VD2_cells,
+      reduction = "adt_umap_vd2",
+      group.by = paste0("Protein_snn_res.", r),
+      label = TRUE
+    ) + ggtitle(paste("res =", r))
+  }
+)
+
+wrap_plots(plots, ncol = 2)
+
+ggsave("ADT_clusters_0.3_until_1.4_ADT_UMAP.pdf", height = 10, width=8)
+
+```
+
+```{r}
+adt_res_col = paste0("Protein_snn_res.", "0.3")
+
+#remap 0->1 and 1->2
+VD2_cells$ADT_clusters = as.character(VD2_cells[[adt_res_col]][[1]])
+VD2_cells$ADT_clusters[VD2_cells$ADT_clusters == "1"] = "2"
+VD2_cells$ADT_clusters[VD2_cells$ADT_clusters == "0"] = "1"
+
+
+VD2_cells$ADT_clusters = as.factor(VD2_cells$ADT_clusters)
+
+DimPlot(
+  VD2_cells,
+  reduction = "adt_umap_vd2",
+  group.by = "ADT_clusters", 
+  label = TRUE
+) +  
+  ggtitle("ADT Clusters (Res 0.3)") +
+  labs(x = "ADT UMAP 1", y = "ADT UMAP 2")
+
+ggsave("ADT_clusters_1-2_UMAP.pdf", height = 5, width = 6)
+```
+
+```{r, fig.height=10, fig.width=8}
+
+# Reductions(VD2_cells)
+
+
+plots = lapply(
+  resolutions,
+  function(r) {
+    DimPlot(
+      VD2_cells,
+      reduction = "adt_pca_vd2",
+      group.by = paste0("Protein_snn_res.", r),
+      label = TRUE
+    ) + ggtitle(paste("res =", r))
+  }
+)
+
+wrap_plots(plots, ncol = 2)
+
+ggsave("ADT_clusters_0.3_until_1.4_ADT_PCA.pdf", height = 10, width=8)
+
+
+
+
+
+plots = lapply(
+  resolutions,
+  function(r) {
+    DimPlot(
+      VD2_cells,
+      reduction = "adt_harmony_vd2",
+      group.by = paste0("Protein_snn_res.", r),
+      label = TRUE
+    ) + ggtitle(paste("res =", r))
+  }
+)
+
+wrap_plots(plots, ncol = 2)
+
+ggsave("ADT_clusters_0.3_until_1.4_ADT_harmony.pdf", height = 10, width=8)
+
+```
+
+
+
+```{r, fig.height=10, fig.width=8}
+
+plots = lapply(
+  resolutions,
+  function(r) {
+    DimPlot(
+      VD2_cells,
+      reduction = "rna_pca_vd2",
+      group.by = paste0("Protein_snn_res.", r),
+      label = TRUE
+    ) + ggtitle(paste("res =", r))
+  }
+)
+
+wrap_plots(plots, ncol = 2)
+
+ggsave("ADT_clusters_0.3_until_1.4_RNA_pca.pdf", height = 10, width=8)
+
+
+
+
+
+plots = lapply(
+  resolutions,
+  function(r) {
+    DimPlot(
+      VD2_cells,
+      reduction = "rna_harmony_vd2",
+      group.by = paste0("Protein_snn_res.", r),
+      label = TRUE
+    ) + ggtitle(paste("res =", r))
+  }
+)
+
+wrap_plots(plots, ncol = 2)
+
+ggsave("ADT_clusters_0.3_until_1.4_RNA_harmony.pdf", height = 10, width=8)
+
+
+```
+
+
+## clustering rna
+
+
+```{r}
+DefaultAssay(VD2_cells) = "RNA"
+resolutions = c(0.3,0.4, 0.5, 0.8, 1.0,1.4)
+
+VD2_cells = FindNeighbors(
+  VD2_cells,
+  reduction = "rna_pca_vd2",
+  dims = 1:30
+)
+
+for (r in resolutions) {
+  VD2_cells = FindClusters(
+    VD2_cells,
+    resolution = r,
+    algorithm = 1 #louvain
+  )
+}
+
+```
+
+```{r, fig.height=10, fig.width=8}
+library(patchwork)
+
+plots = lapply(
+  resolutions,
+  function(r) {
+    DimPlot(
+      VD2_cells,
+      reduction = "rna_pca_vd2",
+      group.by = paste0("RNA_snn_res.", r),
+      label = TRUE
+    ) + ggtitle(paste("res =", r))
+  }
+)
+
+wrap_plots(plots, ncol = 2)
+
+ggsave("RNA_clusters_0.3_until_1.4_RNA_pca.pdf", height = 10, width=8)
+
+```
+
+
+```{r, fig.height=10, fig.width=8}
+library(patchwork)
+
+plots = lapply(
+  resolutions,
+  function(r) {
+    DimPlot(
+      VD2_cells,
+      reduction = "rna_umap_vd2",
+      group.by = paste0("RNA_snn_res.", r),
+      label = TRUE
+    ) + ggtitle(paste("res =", r))
+  }
+)
+
+wrap_plots(plots, ncol = 2)
+# ggsave("RNA_clusters_0.3_until_1.4_RNA_UMAP.pdf", height = 10, width=8)
+
+```
+
+
+## chosen cluster
+```{r cluster_relabel}
+## 1-indexed cluster labels
+VD2_cells$ADT_cluster = factor(
+  as.integer(as.character(VD2_cells$Protein_snn_res.0.3)) + 1
+)
+
+n_clusters = nlevels(VD2_cells$ADT_cluster)
+cluster_levels = levels(VD2_cells$ADT_cluster)
+
+cluster_of_interest = "2"
+
+## Colorblind-friendly palette with Cluster 4 emphasized
+base_colors = c(
+  "#56B4E9",  # sky blue
+  "#009E73",  # bluish green
+  "#E69F00",  # orange
+  "#CC79A7",  # purple
+  "#0072B2",  # blue
+  "#F0E442",  # yellow
+  "#999999"   # grey
+)
+
+other_clusters = setdiff(cluster_levels, cluster_of_interest)
+
+cluster_palette = setNames(rep(NA, n_clusters), cluster_levels)
+cluster_palette[other_clusters] = base_colors[seq_along(other_clusters)]
+
+cluster_palette[cluster_of_interest] = "#E4002B"
+
+cluster_palette
+```
+
+
+```{r fig4a_umap_clusters_relabeled1, fig.height=6, fig.width=7}
+DimPlot(
+  VD2_cells,
+  reduction = "adt_umap_vd2",
+  group.by = "ADT_cluster",
+  label = TRUE,
+  cols = cluster_palette
+) +
+  labs(x = "ADT-based UMAP 1", y = "ADT-based UMAP 2", colour = "Cluster") +
+  ggtitle("Figure 4A: ADT-based clusters (res = 0.4)")
+```
+
+```{r fig4a_umap_clusters_relabeled, fig.height=6, fig.width=7}
+DimPlot(
+  VD2_cells,
+  reduction = "adt_umap_vd2",
+  group.by = "RNA_snn_res.0.5",
+  label = TRUE
+) +
+  labs(x = "ADT-based UMAP 1", y = "ADT-based UMAP 2")
+```
+
+
+```{r fig, fig.height=4, fig.width=4}
+DimPlot(
+  VD2_cells,
+  reduction = "rna_umap_vd2",
+  group.by = "Protein_snn_res.0.3",
+  label = TRUE
+) +
+  labs(x = "RNA-based UMAP 1", y = "RNA-based UMAP 2") + ggtitle("ADT cluster overlaid on the RNA-based UMAP")
+```
+
+
+
+```{r}
+
+rna_col <- "RNA_snn_res.0.5"       
+adt_col <- "Protein_snn_res.0.3"   
+
+# row 1: colored by RNA clusters on both UMAP embeddings
+p1 <- DimPlot(VD2_cells, reduction = "rna_umap_vd2", group.by = rna_col, label = TRUE) + 
+  ggtitle("RNA Clusters on RNA UMAP") + 
+  theme_minimal() + 
+  theme(panel.grid = element_blank())
+
+p2 <- DimPlot(VD2_cells, reduction = "adt_umap_vd2", group.by = rna_col, label = TRUE) + 
+  ggtitle("RNA Clusters on ADT UMAP") + 
+  theme_minimal() + 
+  theme(panel.grid = element_blank())
+
+# row 2: colored by ADT clusters on both UMAP embeddings
+p3 <- DimPlot(VD2_cells, reduction = "rna_umap_vd2", group.by = adt_col, label = TRUE) + 
+  ggtitle("ADT Clusters on RNA UMAP") + 
+  theme_minimal() + 
+  theme(panel.grid = element_blank())
+
+p4 <- DimPlot(VD2_cells, reduction = "adt_umap_vd2", group.by = adt_col, label = TRUE) + 
+  ggtitle("ADT Clusters on ADT UMAP") + 
+  theme_minimal() + 
+  theme(panel.grid = element_blank())
+
+ #Combine into a 2x2 grid and save
+grid_plot <- (p1 + p2) / (p3 + p4)
+grid_plot
+
+ggsave("RNA_vs_ADT_UMAP_comparison_14-09-2026_17-09-2026.pdf", plot = grid_plot, width = 14, height = 10)
+
+
+```
+
+```{r}
+
+cluster_contingency <- table(RNA = VD2_cells@meta.data[[rna_col]], 
+                             ADT = VD2_cells@meta.data[[adt_col]])
+
+write.csv(cluster_contingency, "RNA_vs_ADT_cluster_cross_tabulation_17-09-2026_ohne_3280-1.csv")
+
+pheatmap(log1p(cluster_contingency), 
+         main = "Overlap between RNA and ADT Clusters (log1p cell counts)",
+         filename = "RNA_vs_ADT_cluster_heatmap_17-09-2026_ohne_3280-1.png")
+```
+
+
+
+
+
