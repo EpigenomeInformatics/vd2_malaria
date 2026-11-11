@@ -1,11 +1,18 @@
 # nolint start
 ####################################################################################
-#' Project: Repeated malaria exposure reprograms Vδ2+ γδ T cell chromatin accessibility and immune function toward a reversible hyporesponsive state
-#' Script: utils.R
-#' Author: MIJM
-#' Last Update: 27.08.26
-#'  Description: RNAseq libraries, utils, helper functions, and initial data processing.
-
+#' Project:     Repeated malaria exposure reprograms Vδ2+ γδ T cell chromatin accessibility and immune function toward a reversible hyporesponsive state
+#' Script:      RNA_utils.R
+#' Author:      MIJM
+#' Last Update: 2026-11-02
+#' Description: Shared RNA-seq setup: libraries and constants (groupLevels,
+#'              genesOfInterest, toKeepBiotype); tximport of kallisto quantifications
+#'              (in vivo + in vitro); offset normalisation; filterByExpr on donor-paired
+#'              aEIR samples; GENCODE v27 biotype and autosome filtering.
+#' Inputs:      kallisto quant directory, abundanceforTximport.tsv (cluster paths)
+#'              data/RNA/RNAcomprehensiveSampleAnnot.csv, data/gencodeV27_genes.rds
+#' Outputs:     Session objects: dgeMaster, sampleAnnot, geneInfo, allSamples,
+#'              inVitroSamples
+#' Usage:       source("./scripts/RNAseq/RNA_utils.R")  # from repository root
 ####################################################################################
 
 # 0. Libraries and Setup

@@ -1,10 +1,15 @@
 # nolint start
 ####################################################################################
-# Project: Repeated malaria exposure reprograms Vδ2+ γδ T cell chromatin accessibility and immune function toward a reversible hyporesponsive state
-# Script: plotting.R
-# Author: MIJM
-# Last Update: 27.08.26
-# Description: ATACseq plotting
+#' Project:     Repeated malaria exposure reprograms Vδ2+ γδ T cell chromatin accessibility and immune function toward a reversible hyporesponsive state
+#' Script:      Exploratory.R
+#' Author:      MIJM
+#' Last Update: 2026-11-02
+#' Description: ATAC-seq QC and exploration: TSS enrichment vs. number of fragments
+#'              (VD2 and CD4 samples), and PCA of quantile-normalised log2 consensus-peak
+#'              counts coloured by donor.
+#' Depends:     scripts/ATACseq/utils.R
+#' Inputs:      dsATAC data_filtered_aeir (cluster path); loadOBJECT_("long")
+#' Usage:       Rscript scripts/ATACseq/Exploratory.R  # from repository root
 ####################################################################################
 
 source("/icbb/projects/mmaran/malariaScripts/utils.R")
@@ -39,7 +44,6 @@ dev.off()
 
 # 2. PCA
 
-# TODO: include long and pilot full as well
 OBJECT <- "long" #c(regional_reduced, long_reduced, long, regional) 
 data_ <- loadOBJECT_(OBJECT)
 
@@ -83,6 +87,5 @@ jpeg("./image.jpg",width=10,height=11,units="in",res=600)
     theme(text = element_text(size = 15))
 dev.off()
 
-# 3. 
 
 # nolint end

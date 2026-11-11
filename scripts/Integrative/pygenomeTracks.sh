@@ -1,14 +1,17 @@
-# nolint start
-####################################################################################
-#' Project: Repeated malaria exposure reprograms Vδ2+ γδ T cell chromatin accessibility and immune function toward a reversible hyporesponsive state
-#' Script: pyegnomeTracks.R
-#' Author: MIJM
-#' Last Update: 27.08.26
-#' Description: Plotting genome tracks
-
-####################################################################################
-
 #!/bin/bash
+####################################################################################
+# Project:     Repeated malaria exposure reprograms Vδ2+ γδ T cell chromatin accessibility and immune function toward a reversible hyporesponsive state
+# Script:      pygenomeTracks.sh
+# Author:      MIJM
+# Last Update: 2026-11-02
+# Description: Convert BED signal tracks to bedGraph and plot each gene locus with P2G
+#              links (full view per gene, plus a zoomed PLCG2 view).
+# Depends:     pyGenomeTracks; MAIN.ini track template in the working directory
+# Inputs:      Outputs of P2G_plotting.R: *.bed, <gene>_p2g.links, <gene>_view.links,
+#              <gene>_vlines.bed
+# Outputs:     plots/mean_full_<gene>.pdf, plots/mean_view_reduced_PLCG2.pdf
+# Usage:       cd results/integrative && bash ../../scripts/Integrative/pygenomeTracks.sh
+####################################################################################
 
 # Convert into bedGraph
 for f in *.bed; do

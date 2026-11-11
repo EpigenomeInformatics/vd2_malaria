@@ -1,12 +1,17 @@
 # nolint start
 ####################################################################################
-#' Project: Repeated malaria exposure reprograms Vδ2+ γδ T cell chromatin accessibility and immune function toward a reversible hyporesponsive state
-#' Script: activity.R
-#' Author: MIJM
-#' Last Update: 27.08.26
-#' Description: computing activity scores for ATACseq data and plotting with RNAseq data
-#' ATACseq samples are donor-paired and adjusted (with limma::removeBatchEffects) responder samples identified from chromVAR differentials by aEIR groups. Mean difference between the scores are calculated and plotted with RNAseq data as scatterplots.
-
+#' Project:     Repeated malaria exposure reprograms Vδ2+ γδ T cell chromatin accessibility and immune function toward a reversible hyporesponsive state
+#' Script:      activity.R
+#' Author:      MIJM
+#' Last Update: 2026-11-02
+#' Description: RBF gene activity scores from ATAC-seq (responder samples,
+#'              donor-corrected with limma); Wilcoxon test high vs. low aEIR; scatter plot
+#'              of activity difference vs. RNA-seq logFC.
+#' Depends:     scripts/ATACseq/utils.R
+#' Inputs:      RNA_vd2.aeir_group.csv, rnaAnnot.rds,
+#'              LONG_vd2.EirGrp-AltiusSubset.diffacc.csv (cluster paths; copies in ./data)
+#' Outputs:     results/ATACseq/activity.pdf
+#' Usage:       Rscript scripts/Integrative/activity.R  # from repository root
 ####################################################################################
 
 source("/icbb/projects/mmaran/SCRIPTS/CCB/malariaScripts/utils.R")

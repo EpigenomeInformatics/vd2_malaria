@@ -1,16 +1,27 @@
 # nolint start
 ####################################################################################
-#' Project: Repeated malaria exposure reprograms Vδ2+ γδ T cell chromatin accessibility and immune function toward a reversible hyporesponsive state
-#' Script: chromVAR.R
-#' Author: MIJM
-#' Last Update: 27.08.26
-#' Description: chormVAR analysis with JASPAR2018 or Altius motif families
+#' Project:     Repeated malaria exposure reprograms Vδ2+ γδ T cell chromatin accessibility and immune function toward a reversible hyporesponsive state
+#' Script:      chromVAR.R
+#' Author:      MIJM
+#' Last Update: 2026-11-02
+#' Description: chromVAR helper functions: motif deviation scores with Altius motif
+#'              clusters, per-motif Wilcoxon tests and group z-score differences.
 #' Functions:
-#'   - 
-#'      @return dsATAC object
-#'  - chromVAR altius
+#'   - chromVAR_Altius_(data_, GR)
+#'       chromVAR deviations on region type GR using Altius TF motif clusters
+#'       (adapted from F. Müller). @return chromVARDeviations
+#'   - zDiff_(data_, devZ, GRP1, GRP2)
+#'       Wilcoxon rank-sum test per motif between GRP1 and GRP2 samples (FDR).
+#'       @return data.frame(pval, p_value_adjusted, Significant)
+#'   - annot_zDiff_(diff_acc, data_, GRP1, GRP2, CUTOFF = 1, padj = 0.05)
+#'       Group mean z-scores, zDiff and DiffAcc call per motif. @return data.frame
+#'   Note: zDiff_ and annot_zDiff_ read the globals GRP (and devZ).
+#' Depends:     scripts/ATACseq/utils.R
+#' Inputs:      tfMotifClusters_hg38_uniqueClust.rds (cluster path)
+#' Outputs:     None (sourced by LONG_ChromVAR.R, REGIONAL_chromVAR.R, LOLA.R)
+#' Usage:       source("./scripts/ATACseq/chromVAR.R")  # after utils.R
 ####################################################################################
-source("/icbb/projects/mmaran/SCRIPTS/CCB/malariaScripts/utils.R")
+source("./scripts/ATACseq/utils.R")
 
 
 # 1. chromVAR Altius
@@ -19,7 +30,7 @@ source("/icbb/projects/mmaran/SCRIPTS/CCB/malariaScripts/utils.R")
 chromVAR_Altius_ <- function(data_, GR){
   print("Loading chromVAR Motifs")
 
-  cvMot <- readRDS("/scratch/icbb/mmaran/malaria/tfMotifClusters_hg38_uniqueClust.rds")
+  cvMot <- readRDS("/scratch/icbb/mmaran/malaria/tfMotifClusters_hg38_uniqueClust.rds") # or load chromVAR motifs from ChrAccR
 
   OBJECT <- data_
   # RT <- "peaks"

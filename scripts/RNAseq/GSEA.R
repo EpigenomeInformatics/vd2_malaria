@@ -1,11 +1,17 @@
 # nolint start
 ####################################################################################
-# Project: Repeated malaria exposure reprograms Vδ2+ γδ T cell chromatin accessibility and immune function toward a reversible hyporesponsive state
-# Script: GSEA.R
-# Author: MIJM
-# Last Update: 24Sept26
-#' Description: RNAseq Analysis
-
+#' Project:     Repeated malaria exposure reprograms Vδ2+ γδ T cell chromatin accessibility and immune function toward a reversible hyporesponsive state
+#' Script:      GSEA.R
+#' Author:      MIJM
+#' Last Update: 2026-11-02
+#' Description: GO Biological Process GSEA (clusterProfiler::gseGO) on genes ranked by
+#'              -log10(p) x sign(logFC), filtered to immune-related terms; dot plot and
+#'              enrichment map.
+#' Depends:     degDf from RNAseq.R if present in the session
+#' Inputs:      Otherwise ./data/RNA_vd2.<groupCol>.csv
+#' Outputs:     results/RNAseq/RNA-vd2.dotPlot.GSEA_GO.<groupCol>.pdf
+#'              results/RNAseq/RNA-vd2.emaPlot.GSEA_GO.<groupCol>.pdf
+#' Usage:       Rscript scripts/RNAseq/GSEA.R  # from repository root
 ####################################################################################
 
 suppressPackageStartupMessages(c(

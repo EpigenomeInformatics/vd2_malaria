@@ -1,11 +1,16 @@
 # nolint start
 ####################################################################################
-#' Project: Repeated malaria exposure reprograms Vδ2+ γδ T cell chromatin accessibility and immune function toward a reversible hyporesponsive state
-#' Script: heatmap_chromVAR_DEG.R
-#' Author: MIJM
-#' Last Update: 27.08.26
-#' Description: Plotting ATACseq chromVAR heatmap over DEGs
-
+#' Project:     Repeated malaria exposure reprograms Vδ2+ γδ T cell chromatin accessibility and immune function toward a reversible hyporesponsive state
+#' Script:      heatmap_chromVAR_DEG.R
+#' Author:      MIJM
+#' Last Update: 2026-11-02
+#' Description: Stacked heatmap of chromVAR motif-family deviations (top) and
+#'              donor-corrected DEG expression (bottom) over the same samples, ordered
+#'              as in the chromVAR heatmap and annotated with responder status.
+#' Depends:     Session objects dge, degDf, groupCol, plotDir from RNAseq.R
+#' Inputs:      data/RNA/devZmotifFamilies.rds, data/RNA/annotcol4motifs.csv
+#' Outputs:     results/RNAseq/RNA-vd2.chromVAR-DEG.<groupCol>.pdf
+#' Usage:       Run after RNAseq.R in the same R session
 ####################################################################################
 
 suppressPackageStartupMessages(c(

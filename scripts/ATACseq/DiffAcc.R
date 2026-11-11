@@ -1,10 +1,18 @@
 # nolint start
 ####################################################################################
-# Project: Repeated malaria exposure reprograms Vδ2+ γδ T cell chromatin accessibility and immune function toward a reversible hyporesponsive state
-# Script: MAIN.R
-# Author: MIJM
-# Last Update: 27.08.26
-# Description: Full analysis for Longitudinal ATACseq data
+#' Project:     Repeated malaria exposure reprograms Vδ2+ γδ T cell chromatin accessibility and immune function toward a reversible hyporesponsive state
+#' Script:      DiffAcc.R
+#' Author:      MIJM
+#' Last Update: 2026-11-02
+#' Description: Donor-paired differential accessibility of consensus peaks
+#'              (ChrAccR::getDiffAcc, adjusted for donor) for each comparison in compList.
+#'              Peaks are annotated with nearest gene and proximal/distal relation;
+#'              MA plot of the EirGrp (high vs. low aEIR) comparison.
+#' Depends:     scripts/ATACseq/utils.R
+#' Inputs:      loadOBJECT_("long"); data/malaria_GOI.txt
+#' Outputs:     DAG: list of diffAcc tables per comparison (session)
+#'              results/ATACseq/vd2.diffAcc.Responder_EirGrp.relation.pdf
+#' Usage:       Rscript scripts/ATACseq/DiffAcc.R  # from repository root; run before LOLA.R
 ####################################################################################
 
 source("./scripts/ATACseq/utils.R")

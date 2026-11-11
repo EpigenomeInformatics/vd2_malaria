@@ -1,10 +1,17 @@
 # nolint start
 ####################################################################################
-# Project: Repeated malaria exposure reprograms Vδ2+ γδ T cell chromatin accessibility and immune function toward a reversible hyporesponsive state
-# Script: MAIN.R
-# Author: MIJM
-# Last Update: 27.08.26
-# Description: Full analysis for Longitudinal ATACseq data
+#' Project:     Repeated malaria exposure reprograms Vδ2+ γδ T cell chromatin accessibility and immune function toward a reversible hyporesponsive state
+#' Script:      LOLA.R
+#' Author:      MIJM
+#' Last Update: 2026-11-02
+#' Description: LOLA enrichment of TF motif clusters in peaks more accessible at high
+#'              vs. low aEIR (all consensus peaks as universe); bar plot of TFs enriched
+#'              in only one direction.
+#' Depends:     scripts/ATACseq/utils.R, scripts/ATACseq/chromVAR.R
+#'              Session objects data_ and diffAcc from DiffAcc.R
+#' Inputs:      lolaDatabase.rds (cluster path)
+#' Outputs:     results/ATACseq/LOLA_Long.pdf
+#' Usage:       Run after DiffAcc.R in the same R session
 ####################################################################################
 
 source("./scripts/ATACseq/utils.R")
@@ -13,7 +20,7 @@ source("./scripts/ATACseq/chromVAR.R")
 
 
 
-db <- readRDS("/icbb/projects/mmaran/malaria/lolaDatabase.rds")
+db <- readRDS("/icbb/projects/mmaran/malaria/lolaDatabase.rds") #used the downloaded version; ChrAccR's implementation can be used as well
 
 coord_ <- getCoord(data_, ".peaks.cons")
 names(coord_) <- coord_$name

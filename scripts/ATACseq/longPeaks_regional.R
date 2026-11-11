@@ -1,13 +1,19 @@
 # nolint start
 ####################################################################################
-# Project: Repeated malaria exposure reprograms Vδ2+ γδ T cell chromatin accessibility and immune function toward a reversible hyporesponsive state
-# Script: longPeaks_regional
-# Author: MIJM
-# Last Update: 27.08.26
-# Description: Aggregating Regional data with Longitudinal peakset 
+#' Project:     Repeated malaria exposure reprograms Vδ2+ γδ T cell chromatin accessibility and immune function toward a reversible hyporesponsive state
+#' Script:      longPeaks_regional.R
+#' Author:      MIJM
+#' Last Update: 2026-11-02
+#' Description: Re-quantify regional cohort VD2 samples (Uganda only) over the
+#'              longitudinal consensus peak set and save the aggregated dsATAC object
+#'              used as the "regional" object in loadOBJECT_().
+#' Depends:     scripts/ATACseq/utils.R
+#' Inputs:      loadOBJECT_("long"); pilot dsATAC_filtered (cluster path)
+#' Outputs:     dsATAC saved to PATH_regional_longPeakYear0.5 (cluster path)
+#' Usage:       Rscript scripts/ATACseq/longPeaks_regional.R  # run once, before REGIONAL_chromVAR.R
 ####################################################################################
 
-source("/icbb/projects/mmaran/malariaScripts/utils.R")
+source("./scripts/ATACseq/utils.R")
 
 # ### load datasets
 long_ <- loadOBJECT_("long")

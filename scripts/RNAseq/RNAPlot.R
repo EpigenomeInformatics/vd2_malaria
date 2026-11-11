@@ -1,14 +1,17 @@
 # nolint start
-
 ####################################################################################
-# Project: Repeated malaria exposure reprograms Vδ2+ γδ T cell chromatin accessibility and immune function toward a reversible hyporesponsive state
-# Script: RNAPlot.R
-# Author: MIJM
-# Last Update: 24Sept26
-#' Description: RNAseq Analysis
-# Combined invivo and invitro
-# Common Normalization before biotype
-# Same background set for all analyses
+#' Project:     Repeated malaria exposure reprograms Vδ2+ γδ T cell chromatin accessibility and immune function toward a reversible hyporesponsive state
+#' Script:      RNAPlot.R
+#' Author:      MIJM
+#' Last Update: 2026-11-02
+#' Description: RNA-seq figures for groupCol: MA plot with genes of interest labelled,
+#'              and heatmap of DEGs (donor-corrected log-CPM, columns k-means ordered
+#'              within aEIR group).
+#' Depends:     scripts/RNAseq/RNAseq.R
+#' Inputs:      dge, degDf, tempAnnot, genesOfInterest (from RNAseq.R)
+#' Outputs:     results/RNAseq/RNA-vd2.MA.<groupCol>label.pdf
+#'              results/RNAseq/RNA-heatmap.vd2.<groupCol>.pdf
+#' Usage:       Rscript scripts/RNAseq/RNAPlot.R  # from repository root
 ####################################################################################
 
 source("./scripts/RNAseq/RNAseq.R")

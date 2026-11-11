@@ -1,10 +1,18 @@
 # nolint start
 ####################################################################################
-# Project: Repeated malaria exposure reprograms Vδ2+ γδ T cell chromatin accessibility and immune function toward a reversible hyporesponsive state
-# Script: MAIN.R
-# Author: MIJM
-# Last Update: 27.08.26
-# Description: Full analysis for Longitudinal ATACseq data
+#' Project:     Repeated malaria exposure reprograms Vδ2+ γδ T cell chromatin accessibility and immune function toward a reversible hyporesponsive state
+#' Script:      LONG_ChromVAR.R
+#' Author:      MIJM
+#' Last Update: 2026-11-02
+#' Description: Longitudinal cohort chromVAR deviations (Altius motif clusters or JASPAR)
+#'              on donor-paired samples; donor effect removed with limma; Wilcoxon test
+#'              high vs. low aEIR; volcano plot and k-means-ordered heatmap of
+#'              differential motifs.
+#' Depends:     scripts/ATACseq/utils.R, scripts/ATACseq/chromVAR.R
+#' Inputs:      loadOBJECT_("long")
+#' Outputs:     results/ATACseq/vd2.zDiff.EirGrp.pdf
+#'              results/ATACseq/vd2.chromVAR.EirGrp.Wilcox.pdf
+#' Usage:       Rscript scripts/ATACseq/LONG_ChromVAR.R  # from repository root
 ####################################################################################
 
 source("./scripts/ATACseq/utils.R")

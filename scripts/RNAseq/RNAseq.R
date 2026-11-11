@@ -1,12 +1,17 @@
 # nolint start
 ####################################################################################
-# Project: Repeated malaria exposure reprograms Vδ2+ γδ T cell chromatin accessibility and immune function toward a reversible hyporesponsive state
-# Script: RNAseq.R
-# Author: MIJM
-# Last Update: 12 Dec 2025
-#' Description: RNAseq Analysis
-# Combined invivo and invitro
-# Common Normalization before biotype. Same background set for all analyses
+#' Project:     Repeated malaria exposure reprograms Vδ2+ γδ T cell chromatin accessibility and immune function toward a reversible hyporesponsive state
+#' Script:      RNAseq.R
+#' Author:      MIJM
+#' Last Update: 2026-11-02
+#' Description: Differential expression (edgeR GLM likelihood-ratio test, donor-adjusted
+#'              for in vivo comparisons) for the comparison in groupCol. In vivo and in
+#'              vitro samples are normalised together and share one gene background.
+#' Depends:     scripts/RNAseq/RNA_utils.R
+#' Inputs:      dgeMaster, sampleAnnot (from RNA_utils.R)
+#' Outputs:     Session objects: dge, degDf, geneLabels, tempAnnot
+#'              data/RNA/RNA_vd2.<groupCol>.csv (write.csv currently commented out)
+#' Usage:       Rscript scripts/RNAseq/RNAseq.R  # from repository root
 ####################################################################################
 
 source("./scripts/RNAseq/RNA_utils.R")

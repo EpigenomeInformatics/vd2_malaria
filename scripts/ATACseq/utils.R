@@ -1,21 +1,25 @@
 # nolint start
 ####################################################################################
-#' Project: Repeated malaria exposure reprograms Vδ2+ γδ T cell chromatin accessibility and immune function toward a reversible hyporesponsive state
-#' Script: utils.R
-#' Author: MIJM
-#' Last Update: 27.08.26
-#' Description: ATACseq's All libraries, utils, and helper functions. Load conda atac
+#' Project:     Repeated malaria exposure reprograms Vδ2+ γδ T cell chromatin accessibility and immune function toward a reversible hyporesponsive state
+#' Script:      utils.R
+#' Author:      MIJM
+#' Last Update: 2026-11-02
+#' Description: Shared ATAC-seq setup: libraries, global paths and constants (RESPONDERS,
+#'              donor colours, plotDir) and helper functions. Use the conda env "atac".
 #' Functions:
-#'   - loadOBJECT_: load dsATAC oject
-#'      @return dsATAC object
-#'   - removeSamples_:
-#'      @param 
-#'      @return cleaned dsATAC obejct
-#'  - cleanCoord_
-#'      @param
-#'      @return 
-#'  - takeResLimma
-
+#'   - loadOBJECT_(obj_type)
+#'       Load the "long" or "regional" dsATAC object with the comprehensive
+#'       sample annotation (adds responders, alt_eir). @return dsATAC
+#'   - removeSamples_(data_obj, type = "EirGrp")
+#'       Keep donors sampled in both levels of `type`, or responders only
+#'       (type = "responders"); drops unused donor levels. @return dsATAC
+#'   - cleanCoord_(OBJECT, RT = ".peaks.cons")
+#'       Peak coordinates annotated with nearest coding-gene TSS and distance.
+#'       @return GRanges
+#'   - takeResLimma_(cm, annot, corCol, compCol = "EirGrp")
+#'       limma::removeBatchEffect on `corCol`, preserving `compCol`. @return matrix
+#' Inputs:      PATH_long_0.5, PATH_regional_longPeakYear0.5, PATH_ANNOT (cluster paths)
+#' Usage:       source("./scripts/ATACseq/utils.R")  # from repository root
 ####################################################################################
 
 
